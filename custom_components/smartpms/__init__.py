@@ -7,7 +7,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, P
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_PROPERTY_ID, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import CONF_API_KEY, CONF_PROPERTY_ID, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import SmartPMSApiClient, SmartPMSCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=session,
         email=entry.data[CONF_EMAIL],
         password=entry.data[CONF_PASSWORD],
+        api_key=entry.data[CONF_API_KEY],
     )
 
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)

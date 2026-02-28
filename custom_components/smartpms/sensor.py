@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, STATUS_BLOCKED, STATUS_FREE, STATUS_OCCUPIED
+from .const import CONF_PROPERTY_NAME, DOMAIN, STATUS_BLOCKED, STATUS_FREE, STATUS_OCCUPIED
 from .coordinator import SmartPMSCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,9 +82,10 @@ class SmartPMSUnitSensor(CoordinatorEntity, SensorEntity):
     @property
     def device_info(self):
         """Restituisci informazioni sul dispositivo."""
+        property_name = self._entry.data.get(CONF_PROPERTY_NAME, f"Proprietà {self._property_id}")
         return {
             "identifiers": {(DOMAIN, f"property_{self._property_id}")},
-            "name": f"SmartPMS Proprietà {self._property_id}",
+            "name": property_name,
             "manufacturer": "Smartness",
             "model": "SmartPMS",
             "entry_type": "service",

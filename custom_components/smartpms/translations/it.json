@@ -6,19 +6,21 @@
         "description": "Inserisci le credenziali SmartPMS.",
         "data": {
           "email": "Email",
-          "password": "Password"
+          "password": "Password",
+          "api_key": "Chiave API"
         }
       },
       "property": {
         "title": "Seleziona Proprietà",
-        "description": "Scegli la proprietà da monitorare.",
+        "description": "Scegli la proprietà da monitorare e assegnale un nome.",
         "data": {
-          "property_id": "Proprietà"
+          "property_id": "Proprietà",
+          "property_name": "Nome proprietà"
         }
       }
     },
     "error": {
-      "auth_failed": "Autenticazione fallita. Controlla le credenziali.",
+      "auth_failed": "Autenticazione fallita. Controlla le credenziali e la chiave API.",
       "no_properties": "Nessuna proprietà trovata per questo account."
     },
     "abort": {

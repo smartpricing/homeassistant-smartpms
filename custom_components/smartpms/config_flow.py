@@ -7,7 +7,13 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_PROPERTY_ID, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_API_KEY,
+    CONF_PROPERTY_ID,
+    CONF_PROPERTY_NAME,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 from .coordinator import SmartPMSApiClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -16,6 +22,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_EMAIL): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_API_KEY): str,
     }
 )
 
@@ -28,8 +35,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Inizializza il config flow."""
         self._user_input: dict | None = None
-        self._client: SmartPMSApiClient | None = None
-        self._properties: dict[int, str] = {}
+        self._properties: dict[int, int] = {}  # pid -> count
 
     async def async_step_user(self, user_input=None):
         """Step 1: credenziali e API key."""
@@ -41,6 +47,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 session=session,
                 email=user_input[CONF_EMAIL],
                 password=user_input[CONF_PASSWORD],
+                api_key=user_input[CONF_API_KEY],
             )
 
             try:
@@ -50,37 +57,18 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Errore durante la validazione delle credenziali")
                 errors["base"] = "auth_failed"
             else:
-                # Estrai proprietà uniche dalle unità, conta camere per label
+                # Estrai proprietà uniche con conteggio camere
                 property_counts: dict[int, int] = {}
                 for unit in units:
                     pid = unit.get("property_id")
                     if pid is not None:
                         property_counts[pid] = property_counts.get(pid, 0) + 1
-                properties = {
-                    pid: f"Proprietà {pid} ({count} camere)"
-                    for pid, count in property_counts.items()
-                }
 
-                if not properties:
+                if not property_counts:
                     errors["base"] = "no_properties"
-                elif len(properties) == 1:
-                    # Una sola proprietà, salta la selezione
-                    pid = next(iter(properties))
-                    user_input[CONF_PROPERTY_ID] = pid
-
-                    await self.async_set_unique_id(
-                        f"{user_input[CONF_EMAIL]}_{pid}"
-                    )
-                    self._abort_if_unique_id_configured()
-
-                    return self.async_create_entry(
-                        title=f"SmartPMS - {properties[pid]}",
-                        data=user_input,
-                    )
                 else:
-                    # Più proprietà, vai allo step di selezione
                     self._user_input = user_input
-                    self._properties = properties
+                    self._properties = property_counts
                     return await self.async_step_property()
 
         return self.async_show_form(
@@ -90,10 +78,15 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_property(self, user_input=None):
-        """Step 2: selezione proprietà."""
+        """Step 2: selezione proprietà e nome."""
         if user_input is not None:
             pid = user_input[CONF_PROPERTY_ID]
-            data = {**self._user_input, CONF_PROPERTY_ID: pid}
+            pname = user_input[CONF_PROPERTY_NAME]
+            data = {
+                **self._user_input,
+                CONF_PROPERTY_ID: pid,
+                CONF_PROPERTY_NAME: pname,
+            }
 
             await self.async_set_unique_id(
                 f"{self._user_input[CONF_EMAIL]}_{pid}"
@@ -101,20 +94,31 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
-                title=f"SmartPMS - {self._properties.get(pid, pid)}",
+                title=f"SmartPMS - {pname}",
                 data=data,
             )
 
-        # Costruisci le opzioni del selettore
+        # Costruisci opzioni selettore proprietà
         property_options = {
-            pid: pname for pid, pname in self._properties.items()
+            pid: f"ID {pid} ({count} camere)"
+            for pid, count in self._properties.items()
         }
+
+        # Se c'è una sola proprietà, pre-selezionala
+        default_pid = (
+            next(iter(self._properties))
+            if len(self._properties) == 1
+            else vol.UNDEFINED
+        )
 
         return self.async_show_form(
             step_id="property",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_PROPERTY_ID): vol.In(property_options),
+                    vol.Required(
+                        CONF_PROPERTY_ID, default=default_pid
+                    ): vol.In(property_options),
+                    vol.Required(CONF_PROPERTY_NAME): str,
                 }
             ),
         )

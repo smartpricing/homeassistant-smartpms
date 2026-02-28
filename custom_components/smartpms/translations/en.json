@@ -6,19 +6,21 @@
         "description": "Enter your SmartPMS credentials.",
         "data": {
           "email": "Email",
-          "password": "Password"
+          "password": "Password",
+          "api_key": "API Key"
         }
       },
       "property": {
         "title": "Select Property",
-        "description": "Choose the property to monitor.",
+        "description": "Choose the property to monitor and give it a name.",
         "data": {
-          "property_id": "Property"
+          "property_id": "Property",
+          "property_name": "Property name"
         }
       }
     },
     "error": {
-      "auth_failed": "Authentication failed. Check your credentials.",
+      "auth_failed": "Authentication failed. Check your credentials and API key.",
       "no_properties": "No properties found for this account."
     },
     "abort": {

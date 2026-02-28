@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 import aiohttp
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -25,11 +24,13 @@ class SmartPMSApiClient:
         session: aiohttp.ClientSession,
         email: str,
         password: str,
+        api_key: str,
     ) -> None:
         """Inizializza il client API."""
         self._session = session
         self._email = email
         self._password = password
+        self._api_key = api_key
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
 
@@ -37,7 +38,10 @@ class SmartPMSApiClient:
         """Autentica con le API SmartPMS e ottieni il token JWT."""
         url = f"{API_BASE_URL}/login"
         payload = {"email": self._email, "password": self._password}
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-KEY": self._api_key,
+        }
 
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:
@@ -83,6 +87,7 @@ class SmartPMSApiClient:
         params = {"date": date}
         headers = {
             "Authorization": f"Bearer {self._token}",
+            "X-API-KEY": self._api_key,
         }
 
         try:
