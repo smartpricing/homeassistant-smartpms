@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to SmartPMS",
+        "description": "Enter your SmartPMS credentials and API key.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "API Key"
+        }
+      },
+      "property": {
+        "title": "Select Property",
+        "description": "Choose the property to monitor.",
+        "data": {
+          "property_id": "Property"
+        }
+      }
+    },
+    "error": {
+      "auth_failed": "Authentication failed. Check your credentials and API key.",
+      "no_properties": "No properties found for this account."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SmartPMS Options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  }
+}

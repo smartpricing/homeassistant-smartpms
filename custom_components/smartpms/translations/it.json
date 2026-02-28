@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connetti a SmartPMS",
+        "description": "Inserisci le credenziali SmartPMS e la chiave API.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "Chiave API"
+        }
+      },
+      "property": {
+        "title": "Seleziona Proprietà",
+        "description": "Scegli la proprietà da monitorare.",
+        "data": {
+          "property_id": "Proprietà"
+        }
+      }
+    },
+    "error": {
+      "auth_failed": "Autenticazione fallita. Controlla le credenziali e la chiave API.",
+      "no_properties": "Nessuna proprietà trovata per questo account."
+    },
+    "abort": {
+      "already_configured": "Questo account è già configurato."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni SmartPMS",
+        "data": {
+          "scan_interval": "Intervallo aggiornamento (secondi)"
+        }
+      }
+    }
+  }
+}
