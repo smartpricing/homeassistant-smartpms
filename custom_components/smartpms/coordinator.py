@@ -25,13 +25,11 @@ class SmartPMSApiClient:
         session: aiohttp.ClientSession,
         email: str,
         password: str,
-        api_key: str,
     ) -> None:
         """Inizializza il client API."""
         self._session = session
         self._email = email
         self._password = password
-        self._api_key = api_key
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
 
@@ -39,7 +37,7 @@ class SmartPMSApiClient:
         """Autentica con le API SmartPMS e ottieni il token JWT."""
         url = f"{API_BASE_URL}/login"
         payload = {"email": self._email, "password": self._password}
-        headers = {"X-API-KEY": self._api_key, "Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json"}
 
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:
@@ -49,15 +47,13 @@ class SmartPMSApiClient:
                     raise UpdateFailed(
                         f"Errore autenticazione SmartPMS: HTTP {resp.status}"
                     )
-                data = await resp.json()
-                self._token = data.get("token") or data.get("access_token")
+                body = await resp.json()
+                data = body.get("data", {})
+                self._token = data.get("token")
                 expires_at = data.get("expiresAt")
                 if expires_at:
-                    self._token_expires_at = datetime.fromisoformat(
-                        expires_at.replace("Z", "+00:00")
-                    )
+                    self._token_expires_at = datetime.fromtimestamp(expires_at)
                 else:
-                    # Default: token valido per 1 ora
                     self._token_expires_at = datetime.now() + timedelta(hours=1)
 
                 if not self._token:
@@ -87,7 +83,6 @@ class SmartPMSApiClient:
         params = {"date": date}
         headers = {
             "Authorization": f"Bearer {self._token}",
-            "X-API-KEY": self._api_key,
         }
 
         try:
@@ -95,7 +90,6 @@ class SmartPMSApiClient:
                 url, params=params, headers=headers
             ) as resp:
                 if resp.status == 401:
-                    # Token scaduto, riprova
                     self._token = None
                     await self._ensure_auth()
                     headers["Authorization"] = f"Bearer {self._token}"
@@ -107,13 +101,15 @@ class SmartPMSApiClient:
                                 "Autenticazione SmartPMS fallita"
                             )
                         retry_resp.raise_for_status()
-                        return await retry_resp.json()
+                        body = await retry_resp.json()
+                        return body.get("data", [])
 
                 if resp.status != 200:
                     raise UpdateFailed(
                         f"Errore API SmartPMS: HTTP {resp.status}"
                     )
-                return await resp.json()
+                body = await resp.json()
+                return body.get("data", [])
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Errore di connessione a SmartPMS: {err}") from err
 

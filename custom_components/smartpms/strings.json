@@ -3,11 +3,10 @@
     "step": {
       "user": {
         "title": "Connect to SmartPMS",
-        "description": "Enter your SmartPMS credentials and API key.",
+        "description": "Enter your SmartPMS credentials.",
         "data": {
           "email": "Email",
-          "password": "Password",
-          "api_key": "API Key"
+          "password": "Password"
         }
       },
       "property": {
@@ -19,7 +18,7 @@
       }
     },
     "error": {
-      "auth_failed": "Authentication failed. Check your credentials and API key.",
+      "auth_failed": "Authentication failed. Check your credentials.",
       "no_properties": "No properties found for this account."
     },
     "abort": {

@@ -3,9 +3,8 @@
 DOMAIN = "smartpms"
 
 DEFAULT_SCAN_INTERVAL = 300  # 5 minuti
-API_BASE_URL = "https://pms-api.smartness.com"
+API_BASE_URL = "https://pms-api.smartness.com/api/public/v2"
 
-CONF_API_KEY = "api_key"
 CONF_PROPERTY_ID = "property_id"
 
 STATUS_FREE = "free"
