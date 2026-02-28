@@ -1,48 +1,48 @@
-# SmartPMS per Home Assistant
+# SmartPMS for Home Assistant
 
-Integrazione custom per [Home Assistant](https://www.home-assistant.io/) che espone lo stato di occupazione delle camere dal sistema [SmartPMS](https://pms-api.smartness.com).
+Custom integration for [Home Assistant](https://www.home-assistant.io/) that exposes room occupancy status from [SmartPMS](https://pms-api.smartness.com).
 
-## Funzionalità
+## Features
 
-- Sensore per ogni unità/camera con stato: `free`, `occupied`, `blocked`
-- Icona dinamica in base allo stato
-- Aggiornamento automatico configurabile (default: 5 minuti)
-- Configurazione tramite UI (Config Flow)
-- Compatibile con HACS
+- One sensor per unit/room with state: `free`, `occupied`, `blocked`
+- Dynamic icon based on status
+- Configurable update interval (default: 5 minutes)
+- UI-based configuration (Config Flow) with property selection
+- HACS compatible
 
-## Installazione
+## Installation
 
-### HACS (consigliato)
+### HACS (recommended)
 
-1. Apri HACS in Home Assistant
-2. Vai su "Integrazioni" → menu ⋮ → "Repository personalizzati"
-3. Aggiungi l'URL di questo repository come tipo "Integrazione"
-4. Cerca "SmartPMS" e installalo
-5. Riavvia Home Assistant
+1. Open HACS in Home Assistant
+2. Go to "Integrations" → menu ⋮ → "Custom repositories"
+3. Add this repository URL as type "Integration"
+4. Search for "SmartPMS" and install it
+5. Restart Home Assistant
 
-### Manuale
+### Manual
 
-1. Copia la cartella `custom_components/smartpms/` in `/config/custom_components/`
-2. Riavvia Home Assistant
+1. Copy the `custom_components/smartpms/` folder to `/config/custom_components/`
+2. Restart Home Assistant
 
-## Configurazione
+## Configuration
 
-1. Vai su Impostazioni → Dispositivi e Servizi → Aggiungi Integrazione
-2. Cerca "SmartPMS"
-3. Inserisci:
-   - **Email**: email dell'account SmartPMS
-   - **Password**: password dell'account
-   - **Chiave API**: la chiave API partner
+1. Go to Settings → Devices & Services → Add Integration
+2. Search for "SmartPMS"
+3. Enter your credentials:
+   - **Email**: SmartPMS account email
+   - **Password**: account password
+4. If your account has multiple properties, select which one to monitor
 
-## Opzioni
+## Options
 
-Dopo la configurazione, puoi modificare l'intervallo di aggiornamento:
-- Impostazioni → Dispositivi e Servizi → SmartPMS → Configura
-- Intervallo minimo: 60 secondi, massimo: 3600 secondi
+After setup, you can change the update interval:
+- Settings → Devices & Services → SmartPMS → Configure
+- Minimum: 60 seconds, maximum: 3600 seconds
 
-## Entità create
+## Entities
 
-Per ogni unità viene creato un sensore `sensor.smartpms_<property_id>_<unit_id>` con:
-- **Stato**: `free`, `occupied`, `blocked`
-- **Attributi**: `unit_id`, `unit_name`, `property_id`
-- **Icona**: cambia in base allo stato
+For each unit a sensor `sensor.smartpms_<property_id>_<unit_id>` is created with:
+- **State**: `free`, `occupied`, `blocked`
+- **Attributes**: `unit_id`, `unit_name`, `property_id`
+- **Icon**: changes based on status (`mdi:door-open`, `mdi:bed`, `mdi:wrench`)
