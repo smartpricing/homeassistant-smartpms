@@ -38,7 +38,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._user_input: dict | None = None
-        self._properties: dict[int, int] = {}  # pid -> unit count
+        self._properties: dict[int, dict] = {}  # pid -> {count, name}
 
     async def async_step_user(self, user_input=None):
         """Handle step 1: credentials and API key."""
@@ -62,6 +62,8 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.debug("SmartPMS config flow: auth successful, fetching units")
                 units = await client.get_units()
                 _LOGGER.debug("SmartPMS config flow: received %d units", len(units))
+                if units:
+                    _LOGGER.debug("SmartPMS unit keys: %s", list(units[0].keys()))
             except ConfigEntryAuthFailed as err:
                 _LOGGER.warning("SmartPMS config flow: auth failed: %s", err)
                 errors["base"] = "auth_failed"
@@ -75,18 +77,24 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("SmartPMS config flow: unexpected error")
                 errors["base"] = "unknown"
             else:
-                # Extract unique properties with unit counts
-                property_counts: dict[int, int] = {}
+                # Extract unique properties with unit counts and names
+                property_info: dict[int, dict] = {}
                 for unit in units:
                     pid = unit.get("property_id")
-                    if pid is not None:
-                        property_counts[pid] = property_counts.get(pid, 0) + 1
+                    if pid is None:
+                        continue
+                    if pid not in property_info:
+                        property_info[pid] = {
+                            "count": 0,
+                            "name": unit.get("property_name", ""),
+                        }
+                    property_info[pid]["count"] += 1
 
-                if not property_counts:
+                if not property_info:
                     errors["base"] = "no_properties"
                 else:
                     self._user_input = user_input
-                    self._properties = property_counts
+                    self._properties = property_info
                     return await self.async_step_property()
 
         return self.async_show_form(
@@ -115,15 +123,27 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         # Build property selector options
-        property_options = {
-            pid: f"ID {pid} ({count} units)" for pid, count in self._properties.items()
-        }
+        property_options = {}
+        for pid, info in self._properties.items():
+            name = info.get("name")
+            count = info["count"]
+            if name:
+                property_options[pid] = f"{name} ({count} units)"
+            else:
+                property_options[pid] = f"ID {pid} ({count} units)"
 
         default_pid = (
             next(iter(self._properties))
             if len(self._properties) == 1
             else vol.UNDEFINED
         )
+
+        # Pre-fill property name if available from first property
+        default_name = vol.UNDEFINED
+        if len(self._properties) == 1:
+            info = next(iter(self._properties.values()))
+            if info.get("name"):
+                default_name = info["name"]
 
         return self.async_show_form(
             step_id="property",
@@ -132,7 +152,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_PROPERTY_ID, default=default_pid): vol.In(
                         property_options
                     ),
-                    vol.Required(CONF_PROPERTY_NAME): str,
+                    vol.Required(CONF_PROPERTY_NAME, default=default_name): str,
                 }
             ),
         )
