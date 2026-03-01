@@ -17,14 +17,26 @@
           "property_id": "Property",
           "property_name": "Property name"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate SmartPMS",
+        "description": "Your credentials have expired or changed. Please re-enter them.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "API Key"
+        }
       }
     },
     "error": {
       "auth_failed": "Authentication failed. Check your credentials and API key.",
-      "no_properties": "No properties found for this account."
+      "cannot_connect": "Unable to connect to SmartPMS. Check your network and API key.",
+      "no_properties": "No properties found for this account.",
+      "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {
-      "already_configured": "This account is already configured."
+      "already_configured": "This property is already configured.",
+      "reauth_successful": "Re-authentication successful."
     }
   },
   "options": {

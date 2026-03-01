@@ -1,8 +1,9 @@
-"""Costanti per l'integrazione SmartPMS."""
+"""Constants for the SmartPMS integration."""
 
 DOMAIN = "smartpms"
 
-DEFAULT_SCAN_INTERVAL = 300  # 5 minuti
+DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
+
 API_BASE_URL = "https://pms-api.smartness.com/api/public/v2"
 
 CONF_API_KEY = "api_key"

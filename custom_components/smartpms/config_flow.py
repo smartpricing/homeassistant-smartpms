@@ -1,11 +1,14 @@
-"""Config flow per l'integrazione SmartPMS."""
+"""Config flow for the SmartPMS integration."""
 
 import logging
 
+import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import (
     CONF_API_KEY,
@@ -28,17 +31,17 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 
 class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Gestione config flow per SmartPMS."""
+    """Handle a config flow for SmartPMS."""
 
     VERSION = 1
 
     def __init__(self) -> None:
-        """Inizializza il config flow."""
+        """Initialize the config flow."""
         self._user_input: dict | None = None
-        self._properties: dict[int, int] = {}  # pid -> count
+        self._properties: dict[int, int] = {}  # pid -> unit count
 
     async def async_step_user(self, user_input=None):
-        """Step 1: credenziali e API key."""
+        """Handle step 1: credentials and API key."""
         errors = {}
 
         if user_input is not None:
@@ -51,13 +54,28 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             try:
+                _LOGGER.debug(
+                    "SmartPMS config flow: authenticating %s",
+                    user_input[CONF_EMAIL],
+                )
                 await client.authenticate()
+                _LOGGER.debug("SmartPMS config flow: auth successful, fetching units")
                 units = await client.get_units()
-            except Exception:
-                _LOGGER.exception("Errore durante la validazione delle credenziali")
+                _LOGGER.debug("SmartPMS config flow: received %d units", len(units))
+            except ConfigEntryAuthFailed as err:
+                _LOGGER.warning("SmartPMS config flow: auth failed: %s", err)
                 errors["base"] = "auth_failed"
+            except UpdateFailed as err:
+                _LOGGER.error("SmartPMS config flow: API error: %s", err)
+                errors["base"] = "cannot_connect"
+            except aiohttp.ClientError as err:
+                _LOGGER.error("SmartPMS config flow: connection error: %s", err)
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("SmartPMS config flow: unexpected error")
+                errors["base"] = "unknown"
             else:
-                # Estrai proprietà uniche con conteggio camere
+                # Extract unique properties with unit counts
                 property_counts: dict[int, int] = {}
                 for unit in units:
                     pid = unit.get("property_id")
@@ -78,7 +96,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_property(self, user_input=None):
-        """Step 2: selezione proprietà e nome."""
+        """Handle step 2: property selection."""
         if user_input is not None:
             pid = user_input[CONF_PROPERTY_ID]
             pname = user_input[CONF_PROPERTY_NAME]
@@ -88,9 +106,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_PROPERTY_NAME: pname,
             }
 
-            await self.async_set_unique_id(
-                f"{self._user_input[CONF_EMAIL]}_{pid}"
-            )
+            await self.async_set_unique_id(f"{self._user_input[CONF_EMAIL]}_{pid}")
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
@@ -98,13 +114,11 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=data,
             )
 
-        # Costruisci opzioni selettore proprietà
+        # Build property selector options
         property_options = {
-            pid: f"ID {pid} ({count} camere)"
-            for pid, count in self._properties.items()
+            pid: f"ID {pid} ({count} units)" for pid, count in self._properties.items()
         }
 
-        # Se c'è una sola proprietà, pre-selezionala
         default_pid = (
             next(iter(self._properties))
             if len(self._properties) == 1
@@ -115,25 +129,82 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="property",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        CONF_PROPERTY_ID, default=default_pid
-                    ): vol.In(property_options),
+                    vol.Required(CONF_PROPERTY_ID, default=default_pid): vol.In(
+                        property_options
+                    ),
                     vol.Required(CONF_PROPERTY_NAME): str,
                 }
             ),
         )
 
+    async def async_step_reauth(self, entry_data: dict):
+        """Handle reauth trigger."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        """Handle reauth confirmation."""
+        errors = {}
+        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+
+        if user_input is not None:
+            session = async_get_clientsession(self.hass)
+            client = SmartPMSApiClient(
+                session=session,
+                email=user_input[CONF_EMAIL],
+                password=user_input[CONF_PASSWORD],
+                api_key=user_input[CONF_API_KEY],
+            )
+
+            try:
+                await client.authenticate()
+                await client.get_units()
+            except ConfigEntryAuthFailed:
+                errors["base"] = "auth_failed"
+            except (UpdateFailed, aiohttp.ClientError):
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("SmartPMS reauth: unexpected error")
+                errors["base"] = "unknown"
+            else:
+                self.hass.config_entries.async_update_entry(
+                    entry,
+                    data={
+                        **entry.data,
+                        CONF_EMAIL: user_input[CONF_EMAIL],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_API_KEY: user_input[CONF_API_KEY],
+                    },
+                )
+                await self.hass.config_entries.async_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_EMAIL, default=entry.data.get(CONF_EMAIL, "")
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                    vol.Required(
+                        CONF_API_KEY, default=entry.data.get(CONF_API_KEY, "")
+                    ): str,
+                }
+            ),
+            errors=errors,
+        )
+
     @staticmethod
     def async_get_options_flow(config_entry):
-        """Restituisci l'options flow handler."""
+        """Return the options flow handler."""
         return SmartPMSOptionsFlow()
 
 
 class SmartPMSOptionsFlow(config_entries.OptionsFlow):
-    """Gestione opzioni per SmartPMS."""
+    """Handle SmartPMS options."""
 
     async def async_step_init(self, user_input=None):
-        """Gestisci le opzioni."""
+        """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 

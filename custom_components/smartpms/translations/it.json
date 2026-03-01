@@ -11,20 +11,32 @@
         }
       },
       "property": {
-        "title": "Seleziona Proprietà",
-        "description": "Scegli la proprietà da monitorare e assegnale un nome.",
+        "title": "Seleziona Propriet\u00e0",
+        "description": "Scegli la propriet\u00e0 da monitorare e assegnale un nome.",
         "data": {
-          "property_id": "Proprietà",
-          "property_name": "Nome proprietà"
+          "property_id": "Propriet\u00e0",
+          "property_name": "Nome propriet\u00e0"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ri-autenticazione SmartPMS",
+        "description": "Le credenziali sono scadute o cambiate. Inseriscile nuovamente.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "Chiave API"
         }
       }
     },
     "error": {
       "auth_failed": "Autenticazione fallita. Controlla le credenziali e la chiave API.",
-      "no_properties": "Nessuna proprietà trovata per questo account."
+      "cannot_connect": "Impossibile connettersi a SmartPMS. Controlla la rete e la chiave API.",
+      "no_properties": "Nessuna propriet\u00e0 trovata per questo account.",
+      "unknown": "Errore imprevisto. Controlla i log per i dettagli."
     },
     "abort": {
-      "already_configured": "Questo account è già configurato."
+      "already_configured": "Questa propriet\u00e0 \u00e8 gi\u00e0 configurata.",
+      "reauth_successful": "Ri-autenticazione riuscita."
     }
   },
   "options": {
