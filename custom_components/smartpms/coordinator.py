@@ -109,6 +109,30 @@ class SmartPMSApiClient:
             "X-API-KEY": self._api_key,
         }
 
+    async def get_properties(self) -> list[dict]:
+        """Get list of properties with their units."""
+        await self._ensure_auth()
+
+        url = f"{API_BASE_URL}/automations/properties"
+
+        try:
+            async with self._session.get(url, headers=self._auth_headers()) as resp:
+                if resp.status in (401, 403):
+                    resp_text = await resp.text()
+                    raise ConfigEntryAuthFailed(
+                        f"Properties request failed (HTTP {resp.status}): "
+                        f"{resp_text[:200]}"
+                    )
+                if resp.status != 200:
+                    resp_text = await resp.text()
+                    raise UpdateFailed(
+                        f"SmartPMS API error: HTTP {resp.status} - {resp_text[:200]}"
+                    )
+                body = await resp.json()
+                return body.get("data", [])
+        except aiohttp.ClientError as err:
+            raise UpdateFailed(f"Connection error to SmartPMS: {err}") from err
+
     async def get_units(self, date: str | None = None) -> list[dict]:
         """Get list of units with occupancy status."""
         await self._ensure_auth()

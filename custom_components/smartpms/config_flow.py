@@ -54,16 +54,8 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             try:
-                _LOGGER.debug(
-                    "SmartPMS config flow: authenticating %s",
-                    user_input[CONF_EMAIL],
-                )
                 await client.authenticate()
-                _LOGGER.debug("SmartPMS config flow: auth successful, fetching units")
-                units = await client.get_units()
-                _LOGGER.debug("SmartPMS config flow: received %d units", len(units))
-                if units:
-                    _LOGGER.debug("SmartPMS unit keys: %s", list(units[0].keys()))
+                properties = await client.get_properties()
             except ConfigEntryAuthFailed as err:
                 _LOGGER.warning("SmartPMS config flow: auth failed: %s", err)
                 errors["base"] = "auth_failed"
@@ -77,18 +69,14 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("SmartPMS config flow: unexpected error")
                 errors["base"] = "unknown"
             else:
-                # Extract unique properties with unit counts and names
                 property_info: dict[int, dict] = {}
-                for unit in units:
-                    pid = unit.get("property_id")
-                    if pid is None:
-                        continue
-                    if pid not in property_info:
+                for prop in properties:
+                    pid = prop.get("id")
+                    if pid is not None:
                         property_info[pid] = {
-                            "count": 0,
-                            "name": unit.get("property_name", ""),
+                            "name": prop.get("name", ""),
+                            "count": len(prop.get("units", [])),
                         }
-                    property_info[pid]["count"] += 1
 
                 if not property_info:
                     errors["base"] = "no_properties"
