@@ -26,6 +26,23 @@
           "password": "Password",
           "api_key": "Chiave API"
         }
+      },
+      "reconfigure": {
+        "title": "Impostazioni SmartPMS",
+        "description": "Aggiorna le credenziali e la chiave API. Lascia la password vuota per mantenere quella attuale.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "Chiave API"
+        }
+      },
+      "reconfigure_property": {
+        "title": "Seleziona Propriet\u00e0",
+        "description": "Scegli la propriet\u00e0 da monitorare e assegnale un nome.",
+        "data": {
+          "property_id": "Propriet\u00e0",
+          "property_name": "Nome propriet\u00e0"
+        }
       }
     },
     "error": {
@@ -36,7 +53,8 @@
     },
     "abort": {
       "already_configured": "Questa propriet\u00e0 \u00e8 gi\u00e0 configurata.",
-      "reauth_successful": "Ri-autenticazione riuscita."
+      "reauth_successful": "Ri-autenticazione riuscita.",
+      "reconfigure_successful": "Configurazione aggiornata correttamente."
     }
   },
   "options": {

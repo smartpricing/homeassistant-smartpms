@@ -18,6 +18,23 @@
           "property_name": "Property name"
         }
       },
+      "reconfigure": {
+        "title": "SmartPMS Settings",
+        "description": "Update your credentials and API key. Leave the password empty to keep the current one.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "api_key": "API Key"
+        }
+      },
+      "reconfigure_property": {
+        "title": "Select Property",
+        "description": "Choose the property to monitor and give it a name.",
+        "data": {
+          "property_id": "Property",
+          "property_name": "Property name"
+        }
+      },
       "reauth_confirm": {
         "title": "Re-authenticate SmartPMS",
         "description": "Your credentials have expired or changed. Please re-enter them.",
@@ -36,7 +53,8 @@
     },
     "abort": {
       "already_configured": "This property is already configured.",
-      "reauth_successful": "Re-authentication successful."
+      "reauth_successful": "Re-authentication successful.",
+      "reconfigure_successful": "Configuration updated successfully."
     }
   },
   "options": {
