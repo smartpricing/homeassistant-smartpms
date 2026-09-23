@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 
 import aiohttp
@@ -15,6 +16,17 @@ from homeassistant.helpers.update_coordinator import (
 from .const import API_BASE_URL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+# Upstream bodies are only ever logged at DEBUG, truncated, with credential
+# fields masked; exception messages (shown in the UI and at WARNING/ERROR in
+# the log) carry the HTTP status only. See epic SPCWR-141 (F1/F2).
+_MAX_LOGGED_BODY = 300
+_REDACTED = "**REDACTED**"
+_SENSITIVE_JSON_FIELD = re.compile(
+    r'("(?:[a-z_]*token|password|email|api_?key|x-api-key|authorization)"'
+    r'\s*:\s*)"(?:[^"\\]|\\.)*"',
+    re.IGNORECASE,
+)
 
 
 class SmartPMSApiClient:
@@ -35,6 +47,25 @@ class SmartPMSApiClient:
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
 
+    def _redact(self, text: str) -> str:
+        """Return a short, credential-free excerpt of an upstream body."""
+        excerpt = _SENSITIVE_JSON_FIELD.sub(
+            rf'\1"{_REDACTED}"', text[:_MAX_LOGGED_BODY]
+        )
+        for secret in (self._password, self._api_key, self._token, self._email):
+            if secret:
+                excerpt = excerpt.replace(secret, _REDACTED)
+        return excerpt
+
+    def _log_error_body(self, what: str, status: int, text: str) -> None:
+        """Log an error response body at DEBUG only, redacted."""
+        _LOGGER.debug(
+            "SmartPMS %s error response: HTTP %s, body (redacted): %s",
+            what,
+            status,
+            self._redact(text),
+        )
+
     async def authenticate(self) -> None:
         """Authenticate with SmartPMS API and obtain a JWT token."""
         url = f"{API_BASE_URL}/login"
@@ -46,36 +77,31 @@ class SmartPMSApiClient:
 
         try:
             _LOGGER.debug(
-                "Authenticating with SmartPMS: POST %s, email=%s",
+                "Authenticating with SmartPMS: POST %s",
                 url,
-                self._email,
             )
             async with self._session.post(url, json=payload, headers=headers) as resp:
                 resp_text = await resp.text()
-                _LOGGER.debug(
-                    "SmartPMS auth response: HTTP %s, body: %.500s",
-                    resp.status,
-                    resp_text,
-                )
+                # The login response carries the access and refresh tokens:
+                # never log its body, only the status.
+                _LOGGER.debug("SmartPMS auth response: HTTP %s", resp.status)
 
+                if resp.status != 200:
+                    self._log_error_body("login", resp.status, resp_text)
                 if resp.status in (401, 422):
                     raise ConfigEntryAuthFailed(
-                        f"Invalid credentials (HTTP {resp.status}): {resp_text[:200]}"
+                        f"Invalid credentials (HTTP {resp.status})"
                     )
                 if resp.status == 403:
-                    raise ConfigEntryAuthFailed(
-                        f"Forbidden (HTTP 403): {resp_text[:200]}"
-                    )
+                    raise ConfigEntryAuthFailed("Forbidden (HTTP 403)")
                 if resp.status != 200:
-                    raise UpdateFailed(
-                        f"SmartPMS auth error: HTTP {resp.status} - {resp_text[:200]}"
-                    )
+                    raise UpdateFailed(f"SmartPMS auth error: HTTP {resp.status}")
 
                 try:
                     body = json.loads(resp_text)
                 except (json.JSONDecodeError, ValueError) as err:
                     raise UpdateFailed(
-                        f"Non-JSON response from SmartPMS: {resp_text[:200]}"
+                        "Non-JSON response from the SmartPMS login endpoint"
                     ) from err
 
                 data = body.get("data", {})
@@ -87,7 +113,7 @@ class SmartPMSApiClient:
                     self._token_expires_at = datetime.now() + timedelta(hours=1)
 
                 if not self._token:
-                    raise UpdateFailed(f"No token in login response. Body: {body}")
+                    raise UpdateFailed("No token in the SmartPMS login response")
 
                 _LOGGER.debug("SmartPMS authentication successful")
         except aiohttp.ClientError as err:
@@ -118,16 +144,13 @@ class SmartPMSApiClient:
         try:
             async with self._session.get(url, headers=self._auth_headers()) as resp:
                 if resp.status in (401, 403):
-                    resp_text = await resp.text()
+                    self._log_error_body("properties", resp.status, await resp.text())
                     raise ConfigEntryAuthFailed(
-                        f"Properties request failed (HTTP {resp.status}): "
-                        f"{resp_text[:200]}"
+                        f"Properties request failed (HTTP {resp.status})"
                     )
                 if resp.status != 200:
-                    resp_text = await resp.text()
-                    raise UpdateFailed(
-                        f"SmartPMS API error: HTTP {resp.status} - {resp_text[:200]}"
-                    )
+                    self._log_error_body("properties", resp.status, await resp.text())
+                    raise UpdateFailed(f"SmartPMS API error: HTTP {resp.status}")
                 body = await resp.json()
                 return body.get("data", [])
         except aiohttp.ClientError as err:
@@ -163,25 +186,12 @@ class SmartPMSApiClient:
                         return body.get("data", [])
 
                 if resp.status == 403:
-                    resp_text = await resp.text()
-                    _LOGGER.error(
-                        "SmartPMS get_units: HTTP 403 (Forbidden), body: %.500s",
-                        resp_text,
-                    )
-                    raise ConfigEntryAuthFailed(
-                        f"API key/user mismatch (HTTP 403): {resp_text[:200]}"
-                    )
+                    self._log_error_body("units", resp.status, await resp.text())
+                    raise ConfigEntryAuthFailed("API key/user mismatch (HTTP 403)")
 
                 if resp.status != 200:
-                    resp_text = await resp.text()
-                    _LOGGER.error(
-                        "SmartPMS get_units: HTTP %s, body: %.500s",
-                        resp.status,
-                        resp_text,
-                    )
-                    raise UpdateFailed(
-                        f"SmartPMS API error: HTTP {resp.status} - {resp_text[:200]}"
-                    )
+                    self._log_error_body("units", resp.status, await resp.text())
+                    raise UpdateFailed(f"SmartPMS API error: HTTP {resp.status}")
                 body = await resp.json()
                 return body.get("data", [])
         except aiohttp.ClientError as err:

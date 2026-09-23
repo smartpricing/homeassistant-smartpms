@@ -8,6 +8,11 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import (
@@ -21,11 +26,15 @@ from .coordinator import SmartPMSApiClient
 
 _LOGGER = logging.getLogger(__name__)
 
+# The API key is a secret: rendered as a password field and never sent back
+# to the browser as a default (reauth / reconfigure keep it when left empty).
+SECRET_TEXT = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_EMAIL): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Required(CONF_API_KEY): str,
+        vol.Required(CONF_API_KEY): SECRET_TEXT,
     }
 )
 
@@ -166,12 +175,13 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
 
         if user_input is not None:
-            # An empty password means "keep the currently stored one".
+            # An empty password / API key means "keep the currently stored one".
             password = user_input.get(CONF_PASSWORD) or entry.data[CONF_PASSWORD]
+            api_key = user_input.get(CONF_API_KEY) or entry.data[CONF_API_KEY]
             candidate = {
                 CONF_EMAIL: user_input[CONF_EMAIL],
                 CONF_PASSWORD: password,
-                CONF_API_KEY: user_input[CONF_API_KEY],
+                CONF_API_KEY: api_key,
             }
 
             self._properties, errors = await self._async_validate_credentials(candidate)
@@ -187,9 +197,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_EMAIL, default=entry.data.get(CONF_EMAIL, "")
                     ): str,
                     vol.Optional(CONF_PASSWORD, default=""): str,
-                    vol.Required(
-                        CONF_API_KEY, default=entry.data.get(CONF_API_KEY, "")
-                    ): str,
+                    vol.Optional(CONF_API_KEY): SECRET_TEXT,
                 }
             ),
             errors=errors,
@@ -240,16 +248,17 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
 
         if user_input is not None:
-            _, errors = await self._async_validate_credentials(user_input)
+            # An empty API key means "keep the currently stored one".
+            candidate = {
+                CONF_EMAIL: user_input[CONF_EMAIL],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+                CONF_API_KEY: user_input.get(CONF_API_KEY) or entry.data[CONF_API_KEY],
+            }
+            _, errors = await self._async_validate_credentials(candidate)
             if not errors:
                 self.hass.config_entries.async_update_entry(
                     entry,
-                    data={
-                        **entry.data,
-                        CONF_EMAIL: user_input[CONF_EMAIL],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                        CONF_API_KEY: user_input[CONF_API_KEY],
-                    },
+                    data={**entry.data, **candidate},
                 )
                 await self.hass.config_entries.async_reload(entry.entry_id)
                 return self.async_abort(reason="reauth_successful")
@@ -262,9 +271,7 @@ class SmartPMSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_EMAIL, default=entry.data.get(CONF_EMAIL, "")
                     ): str,
                     vol.Required(CONF_PASSWORD): str,
-                    vol.Required(
-                        CONF_API_KEY, default=entry.data.get(CONF_API_KEY, "")
-                    ): str,
+                    vol.Optional(CONF_API_KEY): SECRET_TEXT,
                 }
             ),
             errors=errors,
