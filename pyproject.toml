@@ -13,3 +13,21 @@ select = [
     "LOG",  # flake8-logging
     "RUF",  # ruff-specific rules
 ]
+
+# Test-only dependencies (PEP 735). Not installed by Home Assistant / HACS:
+# the integration itself has no runtime requirements (manifest.json).
+#   uv venv --python 3.14 && uv pip install --group test && pytest
+# or, with pip >= 25.1:  pip install --group test
+[dependency-groups]
+test = [
+    # 0.13.365 (2026-09-12) pins homeassistant==2026.9.2
+    "pytest-homeassistant-custom-component==0.13.365",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+xfail_strict = true
+addopts = "-p no:cacheprovider"

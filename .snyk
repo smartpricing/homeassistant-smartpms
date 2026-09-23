@@ -1,0 +1,12 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.0
+# tests/ holds the test suite and the local stage harness (tests/stage: mock
+# SmartPMS API + Home Assistant E2E driver). It deliberately contains fake
+# "SENTINEL" credentials and operator-driven subprocess/path handling, is never
+# installed by HACS (only custom_components/smartpms is) and is excluded from
+# Snyk Code. The shipped integration code is scanned in full.
+exclude:
+  code:
+    - tests/**
+ignore: {}
+patch: {}

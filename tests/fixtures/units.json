@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "data": [
+    {"id": 1001, "name": "Room 1", "property_id": 101, "status": "free"},
+    {"id": 1002, "name": "Room 2", "property_id": 101, "status": "occupied"},
+    {"id": 1003, "name": "Room 3", "property_id": 101, "status": "blocked"},
+    {"id": 2001, "name": "Suite", "property_id": 202, "status": "occupied"}
+  ],
+  "code": 200,
+  "status": 200
+}
