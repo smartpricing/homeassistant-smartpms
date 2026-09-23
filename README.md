@@ -72,6 +72,30 @@ Download integration diagnostics from **Settings → Devices & Services → Smar
 | `no_properties` | Account has no properties | Ensure at least one property is configured in SmartPMS |
 | Reauth notification | Token expired or credentials changed | Click the notification and re-enter valid credentials |
 
+## Development and tests
+
+The integration has no runtime requirements. Tests use
+[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component)
+(pinned in `pyproject.toml`, dependency group `test`) and never reach the real
+SmartPMS API: HTTP is mocked and sockets are blocked.
+
+```bash
+uv venv --python 3.14 .venv
+uv pip install --python .venv --group test
+.venv/bin/python -m pytest -q -rxX
+```
+
+- `tests/test_*.py`: config/reauth/reconfigure/options flows, API client
+  contract, setup and sensors, diagnostics redaction, real TLS verification and
+  static checks of the GitHub workflows. Tests marked `xfail(strict=True)`
+  document open security findings and turn green with the PR that fixes them.
+- `tests/stage/e2e.py`: stage run in a throwaway Home Assistant (Docker image
+  or `--runtime host`) against `tests/stage/mock_smartpms.py`, a local mock
+  of the SmartPMS v2 API with synthetic data.
+- `scripts/smoke/smoke.sh`: read-only (GET only) checks of the SmartPMS API
+  (`api`) or of a Home Assistant running the integration (`ha`); safe to run
+  against production.
+
 ## License
 
 [MIT](LICENSE) – Copyright Smartpricing
