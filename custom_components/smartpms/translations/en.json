@@ -20,7 +20,7 @@
       },
       "reconfigure": {
         "title": "SmartPMS Settings",
-        "description": "Update your credentials and API key. Leave the password empty to keep the current one.",
+        "description": "Update your credentials and API key. Leave the password or the API key empty to keep the current one.",
         "data": {
           "email": "Email",
           "password": "Password",
@@ -37,7 +37,7 @@
       },
       "reauth_confirm": {
         "title": "Re-authenticate SmartPMS",
-        "description": "Your credentials have expired or changed. Please re-enter them.",
+        "description": "Your credentials have expired or changed. Please re-enter your password; leave the API key empty to keep the current one.",
         "data": {
           "email": "Email",
           "password": "Password",
