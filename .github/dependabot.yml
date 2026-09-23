@@ -1,0 +1,14 @@
+# Keeps the SHA-pinned GitHub Actions current (weekly, one grouped PR).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3

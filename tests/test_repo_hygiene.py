@@ -115,14 +115,6 @@ def test_workflow_uses_no_repository_secrets(path: Path) -> None:
     assert "secrets." not in path.read_text(encoding="utf-8")
 
 
-WORKFLOW_HARDENING = pytest.mark.xfail(
-    strict=True,
-    reason="F5: hacs/hassfest/lint workflows use mutable action tags and the "
-    "default token permissions; fixed by security/dast-hardening",
-)
-
-
-@WORKFLOW_HARDENING
 def test_all_actions_are_pinned_to_a_commit_sha() -> None:
     unpinned = [
         f"{path.name}:{job}:{step['uses']}"
@@ -135,7 +127,6 @@ def test_all_actions_are_pinned_to_a_commit_sha() -> None:
     assert unpinned == []
 
 
-@WORKFLOW_HARDENING
 def test_all_workflows_declare_read_only_token_permissions() -> None:
     offenders = []
     for path in WORKFLOWS:
@@ -155,7 +146,6 @@ def test_all_workflows_declare_read_only_token_permissions() -> None:
     assert offenders == []
 
 
-@WORKFLOW_HARDENING
 def test_checkout_does_not_persist_the_token() -> None:
     offenders = [
         f"{path.name}:{job}"
@@ -165,3 +155,12 @@ def test_checkout_does_not_persist_the_token() -> None:
         and (step.get("with") or {}).get("persist-credentials") is not False
     ]
     assert offenders == []
+
+
+def test_dependabot_keeps_pinned_actions_current() -> None:
+    """SHA pins only stay safe if they are bumped: Dependabot watches them."""
+    config = yaml.safe_load(
+        (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    )
+    ecosystems = {u["package-ecosystem"] for u in config["updates"]}
+    assert "github-actions" in ecosystems
