@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 101,
+      "name": "Test Hotel Alpha",
+      "country": "IT",
+      "city": "Testville",
+      "postcode": "00000",
+      "street_name": "Via di Prova",
+      "street_number": "1",
+      "units": [
+        {"id": 1001, "name": "Room 1"},
+        {"id": 1002, "name": "Room 2"},
+        {"id": 1003, "name": "Room 3"}
+      ]
+    },
+    {
+      "id": 202,
+      "name": "Test Hotel Beta",
+      "country": "IT",
+      "city": "Testville",
+      "postcode": "00000",
+      "street_name": "Via di Prova",
+      "street_number": "2",
+      "units": [
+        {"id": 2001, "name": "Suite"}
+      ]
+    }
+  ],
+  "code": 200,
+  "status": 200
+}

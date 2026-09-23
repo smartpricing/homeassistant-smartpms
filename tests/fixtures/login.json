@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "type": "Bearer",
+    "token": "ACCESS-SENTINEL-fake-token",
+    "expiresIn": 86400,
+    "expiresAt": 0,
+    "refreshToken": "REFRESH-SENTINEL-fake-token",
+    "refreshExpiresAt": 0
+  },
+  "code": 200,
+  "status": 200
+}
