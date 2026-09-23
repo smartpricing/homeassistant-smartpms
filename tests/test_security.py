@@ -279,11 +279,6 @@ async def test_api_key_field_is_masked(
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F4: requests rely on aiohttp's 300 s default timeout; fixed by "
-    "security/dast-hardening",
-)
 async def test_every_request_sets_an_explicit_timeout(
     hass: HomeAssistant, recording_session
 ) -> None:
@@ -304,11 +299,6 @@ async def test_every_request_sets_an_explicit_timeout(
         assert timeout.total is not None and timeout.total <= 60
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F4: a request timeout escapes as a bare TimeoutError (config flow "
-    "shows 'unknown'); fixed by security/dast-hardening",
-)
 async def test_request_timeout_is_reported_as_cannot_connect(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:

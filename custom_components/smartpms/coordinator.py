@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .const import API_BASE_URL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import API_BASE_URL, DEFAULT_SCAN_INTERVAL, DOMAIN, REQUEST_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ class SmartPMSApiClient:
         self._api_key = api_key
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
+        self._timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
 
     async def authenticate(self) -> None:
         """Authenticate with SmartPMS API and obtain a JWT token."""
@@ -50,7 +51,9 @@ class SmartPMSApiClient:
                 url,
                 self._email,
             )
-            async with self._session.post(url, json=payload, headers=headers) as resp:
+            async with self._session.post(
+                url, json=payload, headers=headers, timeout=self._timeout
+            ) as resp:
                 resp_text = await resp.text()
                 _LOGGER.debug(
                     "SmartPMS auth response: HTTP %s, body: %.500s",
@@ -90,6 +93,10 @@ class SmartPMSApiClient:
                     raise UpdateFailed(f"No token in login response. Body: {body}")
 
                 _LOGGER.debug("SmartPMS authentication successful")
+        except TimeoutError as err:
+            raise UpdateFailed(
+                f"Timeout after {REQUEST_TIMEOUT} s talking to SmartPMS"
+            ) from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Connection error to SmartPMS: {err}") from err
 
@@ -116,7 +123,9 @@ class SmartPMSApiClient:
         url = f"{API_BASE_URL}/automations/properties"
 
         try:
-            async with self._session.get(url, headers=self._auth_headers()) as resp:
+            async with self._session.get(
+                url, headers=self._auth_headers(), timeout=self._timeout
+            ) as resp:
                 if resp.status in (401, 403):
                     resp_text = await resp.text()
                     raise ConfigEntryAuthFailed(
@@ -130,6 +139,10 @@ class SmartPMSApiClient:
                     )
                 body = await resp.json()
                 return body.get("data", [])
+        except TimeoutError as err:
+            raise UpdateFailed(
+                f"Timeout after {REQUEST_TIMEOUT} s talking to SmartPMS"
+            ) from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Connection error to SmartPMS: {err}") from err
 
@@ -145,14 +158,17 @@ class SmartPMSApiClient:
 
         try:
             async with self._session.get(
-                url, params=params, headers=self._auth_headers()
+                url, params=params, headers=self._auth_headers(), timeout=self._timeout
             ) as resp:
                 if resp.status == 401:
                     # Token expired, re-authenticate and retry once
                     self._token = None
                     await self._ensure_auth()
                     async with self._session.get(
-                        url, params=params, headers=self._auth_headers()
+                        url,
+                        params=params,
+                        headers=self._auth_headers(),
+                        timeout=self._timeout,
                     ) as retry_resp:
                         if retry_resp.status == 401:
                             raise ConfigEntryAuthFailed(
@@ -184,6 +200,10 @@ class SmartPMSApiClient:
                     )
                 body = await resp.json()
                 return body.get("data", [])
+        except TimeoutError as err:
+            raise UpdateFailed(
+                f"Timeout after {REQUEST_TIMEOUT} s talking to SmartPMS"
+            ) from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Connection error to SmartPMS: {err}") from err
 
