@@ -18,7 +18,9 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import TextSelector, TextSelectorType
+from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
@@ -72,11 +74,6 @@ async def _run_full_cycle(
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F1: the login response body (access + refresh token) is logged at "
-    "DEBUG; fixed by security/sast",
-)
 async def test_debug_logs_contain_no_credentials_or_tokens(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
@@ -94,11 +91,6 @@ async def test_debug_logs_contain_no_credentials_or_tokens(
         assert value not in caplog.text, f"{name} written to the log"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F1: the account e-mail is logged at DEBUG on every login; fixed by "
-    "security/sast",
-)
 async def test_debug_logs_contain_no_account_email(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
@@ -138,11 +130,6 @@ def _visible_text(caplog: pytest.LogCaptureFixture, entry) -> str:
     return "\n".join(visible)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F2: raw upstream response bodies are copied into exception messages "
-    "(shown in the UI) and ERROR logs; fixed by security/sast",
-)
 @pytest.mark.parametrize("scenario", list(SETUP_FAILURES))
 async def test_setup_errors_do_not_echo_upstream_bodies(
     hass: HomeAssistant,
@@ -170,11 +157,6 @@ async def test_setup_errors_do_not_echo_upstream_bodies(
     assert PASSWORD not in visible
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F2: config-flow errors log the upstream body at WARNING/ERROR; "
-    "fixed by security/sast",
-)
 @pytest.mark.parametrize(
     ("url", "status"),
     [(LOGIN_URL, 401), (LOGIN_URL, 500), (PROPERTIES_URL, 500)],
@@ -232,11 +214,6 @@ def _validator(result, name: str):
     raise AssertionError(f"{name} not in form")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F3: reauth/reconfigure forms pre-fill the stored API key in "
-    "clear text; fixed by security/sast",
-)
 @pytest.mark.parametrize("flow", ["reauth", "reconfigure"])
 async def test_forms_do_not_disclose_the_stored_api_key(
     hass: HomeAssistant, mock_api: AiohttpClientMocker, config_entry, flow: str
@@ -251,11 +228,6 @@ async def test_forms_do_not_disclose_the_stored_api_key(
     assert PASSWORD not in prefilled
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F3: the API key field is a plain text field (typed in clear); "
-    "fixed by security/sast",
-)
 @pytest.mark.parametrize("flow", ["user", "reauth", "reconfigure"])
 async def test_api_key_field_is_masked(
     hass: HomeAssistant, mock_api: AiohttpClientMocker, config_entry, flow: str
@@ -272,6 +244,63 @@ async def test_api_key_field_is_masked(
     validator = _validator(result, CONF_API_KEY)
     assert isinstance(validator, TextSelector)
     assert validator.config.get("type") == TextSelectorType.PASSWORD
+
+
+async def test_debug_error_body_is_redacted(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Error bodies are kept at DEBUG for troubleshooting, with credential
+    fields and the client's own secrets masked."""
+    caplog.set_level(logging.DEBUG, logger="custom_components.smartpms")
+    body = json.dumps(
+        {
+            "message": UPSTREAM_BODY_SENTINEL,
+            "token": "leaked-token-value",
+            "refreshToken": "leaked-refresh-value",
+            "echo": f"{EMAIL} {PASSWORD} {API_KEY}",
+        }
+    )
+    aioclient_mock.post(LOGIN_URL, status=500, text=body)
+    client = SmartPMSApiClient(
+        session=async_get_clientsession(hass),
+        email=EMAIL,
+        password=PASSWORD,
+        api_key=API_KEY,
+    )
+    with pytest.raises(UpdateFailed):
+        await client.authenticate()
+    debug = "\n".join(r.getMessage() for r in caplog.records)
+    assert UPSTREAM_BODY_SENTINEL in debug  # still useful for support
+    for leaked in ("leaked-token-value", "leaked-refresh-value", EMAIL, PASSWORD):
+        assert leaked not in debug
+    assert API_KEY not in debug
+
+
+@pytest.mark.parametrize("flow", ["reauth", "reconfigure"])
+async def test_empty_api_key_keeps_the_stored_one(
+    hass: HomeAssistant, mock_api: AiohttpClientMocker, config_entry, flow: str
+) -> None:
+    """Leaving the (no longer pre-filled) API key empty keeps the stored key."""
+    if flow == "reauth":
+        result = await config_entry.start_reauth_flow(hass)
+        user_input = {CONF_EMAIL: EMAIL, CONF_PASSWORD: PASSWORD}
+    else:
+        result = await config_entry.start_reconfigure_flow(hass)
+        user_input = {CONF_EMAIL: EMAIL, CONF_PASSWORD: ""}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input
+    )
+    logins = [c for c in mock_api.mock_calls if c[1].path.endswith("/login")]
+    assert logins[0][3]["X-API-KEY"] == API_KEY  # validation used the stored key
+    if flow == "reconfigure":
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"property_id": 101, "property_name": "Test Hotel Alpha"},
+        )
+    assert result["reason"] in {"reauth_successful", "reconfigure_successful"}
+    assert config_entry.data[CONF_API_KEY] == API_KEY
 
 
 # --------------------------------------------------------------------------

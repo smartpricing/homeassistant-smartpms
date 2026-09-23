@@ -20,7 +20,7 @@
       },
       "reauth_confirm": {
         "title": "Ri-autenticazione SmartPMS",
-        "description": "Le credenziali sono scadute o cambiate. Inseriscile nuovamente.",
+        "description": "Le credenziali sono scadute o cambiate. Inserisci nuovamente la password; lascia vuota la chiave API per mantenere quella attuale.",
         "data": {
           "email": "Email",
           "password": "Password",
@@ -29,7 +29,7 @@
       },
       "reconfigure": {
         "title": "Impostazioni SmartPMS",
-        "description": "Aggiorna le credenziali e la chiave API. Lascia la password vuota per mantenere quella attuale.",
+        "description": "Aggiorna le credenziali e la chiave API. Lascia vuoti la password o la chiave API per mantenere quelle attuali.",
         "data": {
           "email": "Email",
           "password": "Password",
