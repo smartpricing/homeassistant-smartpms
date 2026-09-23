@@ -1,12 +1,14 @@
 {
   "domain": "smartpms",
   "name": "SmartPMS",
-  "codeowners": ["@smartpricing"],
+  "codeowners": [
+    "@smartpricing"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/smartpricing/homeassistant-smartpms",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/smartpricing/homeassistant-smartpms/issues",
   "requirements": [],
-  "version": "1.2.0"
+  "version": "1.2.1"
 }
